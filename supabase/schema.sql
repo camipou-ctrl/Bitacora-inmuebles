@@ -50,3 +50,10 @@ create policy "atenciones propias" on public.atenciones
   for all to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
+
+-- Permisos: solo usuarios con sesión iniciada; sin sesión no hay acceso.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.inmuebles to authenticated;
+grant select, insert, update, delete on public.atenciones to authenticated;
+revoke all on public.inmuebles from anon;
+revoke all on public.atenciones from anon;
