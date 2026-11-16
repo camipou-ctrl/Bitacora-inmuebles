@@ -199,3 +199,86 @@ drop policy if exists "agentes para el equipo" on public.agentes;
 create policy "agentes para el equipo" on public.agentes
   for select to authenticated
   using ((select privado.es_miembro()));
+
+-- ===== Notificaciones push =====
+-- La función supabase/functions/notificar envía los avisos. Las claves VAPID las genera
+-- esa función la primera vez y quedan en push_config; el secreto se genera aquí mismo.
+create extension if not exists pg_net with schema extensions;
+
+create table if not exists public.suscripciones_push (
+  endpoint text primary key,
+  user_id  uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  p256dh   text not null,
+  auth     text not null,
+  creado   timestamptz not null default now()
+);
+create index if not exists suscripciones_push_user on public.suscripciones_push (user_id);
+alter table public.suscripciones_push enable row level security;
+revoke all on public.suscripciones_push from anon;
+revoke all on public.suscripciones_push from authenticated;
+grant select, insert, update, delete on public.suscripciones_push to authenticated;
+drop policy if exists "suscripciones propias" on public.suscripciones_push;
+create policy "suscripciones propias" on public.suscripciones_push
+  for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()) and (select privado.es_miembro()));
+
+-- Sin políticas: solo la usa el servidor.
+create table if not exists public.push_config (
+  id      int primary key default 1 check (id = 1),
+  secreto text not null,
+  url     text not null,
+  vapid   jsonb
+);
+alter table public.push_config enable row level security;
+revoke all on public.push_config from anon;
+revoke all on public.push_config from authenticated;
+
+grant select, update on public.push_config to service_role;
+grant select, delete on public.suscripciones_push to service_role;
+grant select on public.perfiles to service_role;
+
+-- Cambia la URL por la de tu proyecto.
+insert into public.push_config (id, secreto, url)
+values (1, encode(extensions.gen_random_bytes(32), 'hex'), 'https://TU-PROYECTO.supabase.co/functions/v1/notificar')
+on conflict (id) do nothing;
+
+create or replace function privado.avisar_push()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor  uuid := (select auth.uid());
+  v_cfg    record;
+  v_fila   jsonb;
+begin
+  if v_actor is null then return null; end if;
+  select secreto, url into v_cfg from public.push_config where id = 1;
+  if v_cfg.secreto is null then return null; end if;
+  if tg_op = 'DELETE' then v_fila := to_jsonb(old); else v_fila := to_jsonb(new); end if;
+  perform net.http_post(
+    url := v_cfg.url,
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-bitacora-secreto', v_cfg.secreto),
+    body := jsonb_build_object(
+      'tabla', tg_table_name,
+      'tipo', tg_op,
+      'actor', v_actor,
+      'titulo', coalesce(v_fila ->> 'titulo', v_fila ->> 'cliente', '')
+    ),
+    timeout_milliseconds := 8000
+  );
+  return null;
+exception when others then
+  return null; -- un fallo del aviso nunca debe impedir guardar
+end;
+$$;
+revoke all on function privado.avisar_push() from public, anon, authenticated;
+
+drop trigger if exists inmuebles_avisar_push on public.inmuebles;
+create trigger inmuebles_avisar_push after insert or update or delete on public.inmuebles
+  for each row execute function privado.avisar_push();
+drop trigger if exists atenciones_avisar_push on public.atenciones;
+create trigger atenciones_avisar_push after insert or update or delete on public.atenciones
+  for each row execute function privado.avisar_push();

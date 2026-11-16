@@ -25,10 +25,18 @@ No se conecta con Meta: Marketplace no ofrece una API para publicaciones de perf
 
 Las tablas tienen RLS: solo las personas del equipo (quienes tienen fila en la tabla `perfiles`) ven y editan los registros, y todos comparten los mismos. Los cambios de una persona le aparecen a las demás en vivo. La clave `anon` puede estar en el repositorio porque sin iniciar sesión no da acceso a ningún dato.
 
+## Notificaciones
+
+Cuando alguien del equipo registra, edita o elimina algo, a los demás les llega una notificación push ("Edgar editó una atención"), aunque tengan la app cerrada. Cada persona las activa en Inicio > Notificaciones, una vez por dispositivo. En iPhone hay que abrir la app desde el ícono de la pantalla de inicio.
+
+Por dentro: un trigger de la base llama a la función `notificar` (Edge Function, desplegada sin verificación de JWT porque valida un secreto propio), y `sw.js` muestra el aviso en el dispositivo.
+
 ## Estructura
 
 ```
 index.html           App completa
 config.js            URL y clave pública de Supabase
 supabase/schema.sql  Tablas, índices y políticas RLS
+supabase/functions/notificar/index.ts  Envío de notificaciones push
+sw.js                Service worker que muestra las notificaciones
 ```

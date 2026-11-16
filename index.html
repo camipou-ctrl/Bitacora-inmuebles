@@ -71,6 +71,7 @@ main{flex:1;overflow-y:auto;padding:16px 16px 28px}
 
 .banner{padding:10px 14px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-weight:500;font-size:.92rem}
 .banner[hidden]{display:none}
+.notif{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 body.anon .tabs{display:none}
 body.lectura [data-act="nuevo"],body.lectura [data-act="editar"],body.lectura [data-act="hecho"],body.lectura .actions.reg{display:none}
 .login{max-width:380px;margin:24px auto 0;display:flex;flex-direction:column;gap:12px}
@@ -226,7 +227,8 @@ function montar(){
     v.innerHTML='<div class="wrap"><div class="head"><div><h1>Esta semana</h1><div class="sub" id="ini-rango"></div></div></div>'+
       '<div class="tiles" id="ini-tiles"></div>'+
       '<div class="actions reg"><button class="btn primary" data-act="nuevo" data-kind="inmueble">+ Inmueble</button><button class="btn primary" data-act="nuevo" data-kind="atencion">+ Atención</button></div>'+
-      '<section class="panel"><h2>Seguimientos pendientes</h2><div class="list" id="ini-pend"></div></section></div>';
+      '<section class="panel"><h2>Seguimientos pendientes</h2><div class="list" id="ini-pend"></div></section>'+
+      '<section class="panel"><h2>Notificaciones</h2><div id="ini-notif"></div></section></div>';
   }else if(r==="inmuebles"){
     v.innerHTML='<div class="wrap"><div class="head"><div><h1>Inmuebles publicados</h1><div class="sub" id="inm-cuenta"></div></div><button class="btn primary" data-act="nuevo" data-kind="inmueble">+ Inmueble</button></div>'+
       '<div class="filters"><input id="inm-q" type="search" placeholder="Buscar por título, zona o captador" aria-label="Buscar inmuebles"><select id="inm-estado" aria-label="Filtrar por estado"><option value="">Todos los estados</option>'+ESTADOS.map(function(e){return "<option>"+esc(e)+"</option>"}).join("")+'</select></div>'+
@@ -345,6 +347,7 @@ function llenar(){
     $("ini-rango").textContent=fecha(d.a)+" – "+fecha(d.b,true)+(S.soloLectura?" · Vista de supervisor, solo lectura":"");
     $("ini-tiles").innerHTML='<div class="tile"><b>'+d.inm.length+'</b><span>Inmuebles publicados</span></div><div class="tile"><b>'+d.ate.length+'</b><span>Clientes atendidos</span></div><div class="tile'+(d.pend?" alert":"")+'"><b>'+d.pend+"</b><span>Seguimientos pendientes</span></div>";
     var p=pendientes();
+    pintarNotif();
     $("ini-pend").innerHTML=cargando("ate")&&!S.sinDb?textoCarga():(p.length?p.map(function(a){return tarjetaAte(a,true)}).join(""):vacio("Nada pendiente",S.soloLectura?"No hay seguimientos pendientes.":"Cuando registres una atención con fecha de seguimiento, aparecerá aquí."));
   }else if(r==="inmuebles"){
     var q=S.qInm.trim().toLowerCase();
@@ -574,7 +577,9 @@ document.addEventListener("click",function(e){
   else if(a==="semana"){S.semana=Math.min(0,S.semana+Number(b.dataset.d));llenar()}
   else if(a==="pdf")enviarPdf(b);
   else if(a==="copiar")copiar();
-  else if(a==="salir"){if(sb)sb.auth.signOut()}
+  else if(a==="salir")salir();
+  else if(a==="push-on")activarPush(b);
+  else if(a==="push-off")desactivarPush(false);
 });
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("scrim").hidden)cerrar()});
 window.addEventListener("hashchange",montar);
@@ -594,10 +599,76 @@ async function cargar(){
   S.soloLectura=false;
   S.sinPerfil=!yo;
   suscribir();
+  if(!S.pushRevisado){S.pushRevisado=true;revisarPush()}
   document.body.classList.toggle("lectura",S.soloLectura);
   S.listo.inm=S.listo.ate=true;
   llenar();
 }
+/* ---------- Notificaciones push ---------- */
+function pushDisponible(){return ("serviceWorker" in navigator)&&("PushManager" in window)&&("Notification" in window)}
+function esIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+function b64aBytes(s){
+  var pad="=".repeat((4-s.length%4)%4),b=atob((s+pad).replace(/-/g,"+").replace(/_/g,"/")),o=new Uint8Array(b.length);
+  for(var i=0;i<b.length;i++)o[i]=b.charCodeAt(i);
+  return o;
+}
+function pintarNotif(){
+  var el=$("ini-notif");if(!el)return;
+  var t,btn="";
+  if(!pushDisponible())t=esIOS()?"En iPhone, agrega la app a la pantalla de inicio y ábrela desde ese ícono para poder activar las notificaciones.":"Este navegador no admite notificaciones.";
+  else if(Notification.permission==="denied")t="Las notificaciones están bloqueadas para esta app. Actívalas en los ajustes del teléfono o del navegador.";
+  else if(S.pushActiva){t="Activadas en este dispositivo. Te avisa cuando otra persona del equipo registra o edita algo.";btn='<button class="btn small" data-act="push-off">Desactivar</button>'}
+  else{t="Recibe un aviso cuando otra persona del equipo registra o edita algo, aunque la app esté cerrada.";btn='<button class="btn primary" data-act="push-on">Activar notificaciones</button>'}
+  el.innerHTML='<div class="notif"><div class="meta">'+esc(t)+"</div>"+btn+'<div class="err" id="notif-err">'+esc(S.pushError||"")+"</div></div>";
+}
+async function guardarSub(sub){
+  var j=sub.toJSON();
+  var r=await sb.from("suscripciones_push").upsert({endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:"endpoint"});
+  if(r.error)throw r.error;
+}
+async function revisarPush(){
+  if(!pushDisponible()||!sb||!S.sesion)return;
+  try{
+    var reg=await navigator.serviceWorker.getRegistration();
+    var sub=reg?await reg.pushManager.getSubscription():null;
+    S.pushActiva=!!sub&&Notification.permission==="granted";
+    if(S.pushActiva)await guardarSub(sub);
+  }catch(e){}
+  pintarNotif();
+}
+async function activarPush(btn){
+  if(!pushDisponible()||!sb)return;
+  btn.disabled=true;S.pushError="";
+  try{
+    var permiso=await Notification.requestPermission();
+    if(permiso!=="granted"){S.pushError=permiso==="denied"?"":"No se dio el permiso de notificaciones.";pintarNotif();return}
+    var reg=await navigator.serviceWorker.register("sw.js");
+    await navigator.serviceWorker.ready;
+    var c=window.BITACORA_CONFIG,resp=await fetch(c.SUPABASE_URL+"/functions/v1/notificar");
+    var dato=await resp.json();
+    if(!dato.clave)throw new Error(dato.error||"sin clave");
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64aBytes(dato.clave)});
+    await guardarSub(sub);
+    S.pushActiva=true;toast("Notificaciones activadas");
+  }catch(e){S.pushError="No se pudieron activar las notificaciones. "+(e&&e.message?"("+e.message+")":"")}
+  pintarNotif();
+}
+async function desactivarPush(silencio){
+  try{
+    var reg=await navigator.serviceWorker.getRegistration();
+    var sub=reg?await reg.pushManager.getSubscription():null;
+    if(sub){if(sb)await sb.from("suscripciones_push").delete().eq("endpoint",sub.endpoint);await sub.unsubscribe()}
+  }catch(e){}
+  S.pushActiva=false;
+  if(!silencio){toast("Notificaciones desactivadas");pintarNotif()}
+}
+async function salir(){
+  if(!sb)return;
+  if(pushDisponible())await desactivarPush(true);
+  sb.auth.signOut();
+}
+
 /* Avisos en vivo: cuando otra persona del equipo registra o edita, se recarga y se avisa. */
 function alCambio(que,p){
   clearTimeout(S.tRecarga);S.tRecarga=setTimeout(cargar,500);
@@ -624,7 +695,7 @@ async function iniciar(){
   try{var r=await sb.auth.getSession();S.sesion=r.data.session}catch(e){S.sesion=null}
   sb.auth.onAuthStateChange(function(ev,ses){
     var antes=!!S.sesion;S.sesion=ses;
-    if(!!ses!==antes){if(!ses){S.inm=[];S.ate=[];S.perfiles={};S.soloLectura=false;S.sinPerfil=false;S.listo.inm=S.listo.ate=false;if(S.canal){try{sb.removeChannel(S.canal)}catch(e){}S.canal=null}}montar();if(ses)cargar()}
+    if(!!ses!==antes){if(!ses){S.inm=[];S.ate=[];S.perfiles={};S.soloLectura=false;S.sinPerfil=false;S.pushRevisado=false;S.pushActiva=false;S.listo.inm=S.listo.ate=false;if(S.canal){try{sb.removeChannel(S.canal)}catch(e){}S.canal=null}}montar();if(ses)cargar()}
   });
   montar();
   if(S.sesion)cargar();
