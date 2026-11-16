@@ -56,7 +56,7 @@ main{flex:1;overflow-y:auto;padding:16px 16px 28px}
 .wrap{max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 
 .tabs{display:flex;background:var(--surface);border-top:1px solid var(--line)}
-.tabs a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px 11px;text-decoration:none;
+.tabs a{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px 11px;text-decoration:none;
   color:var(--muted);font-size:.74rem;font-weight:600;border-top:3px solid transparent}
 .tabs a svg{width:22px;height:22px}
 .tabs a[aria-current="page"]{color:var(--accent);border-top-color:var(--accent)}
@@ -163,6 +163,7 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
   <a href="#inicio" data-tab="inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"></path><path d="M5 10v10h14V10"></path></svg>Inicio</a>
   <a href="#inmuebles" data-tab="inmuebles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 8h1M14 8h1M9 12h1M14 12h1M10 21v-4h4v4"></path></svg>Inmuebles</a>
   <a href="#atenciones" data-tab="atenciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg>Atenciones</a>
+  <a href="#clientes" data-tab="clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg>Clientes</a>
   <a href="#reporte" data-tab="reporte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"></path><path d="M14 3v5h5M9 17v-3M12 17v-5M15 17v-2"></path></svg>Reporte</a>
 </nav>
 
@@ -182,7 +183,7 @@ var CANALES=["Messenger","WhatsApp","Llamada","En persona","Instagram","Correo",
 var TIPOS_ATE=["Consulta","Seguimiento","Visita al inmueble","Captación","Oferta o negociación","Documentación","Cierre","Postventa","Otro"];
 var RESULTADOS=["Informado","Interesado","Visita agendada","En negociación","Sin respuesta","No interesado","Cerrado"];
 var MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-var RUTAS=["inicio","inmuebles","atenciones","reporte"];
+var RUTAS=["inicio","inmuebles","atenciones","clientes","reporte"];
 
 var sb=null;
 var S={perfiles:{},soloLectura:false,sesion:null,inm:[],ate:[],listo:{inm:false,ate:false},db:null,dl:null,sinDb:false,lento:false,error:null,
@@ -241,6 +242,12 @@ function montar(){
     $("ate-tipo").addEventListener("change",function(e){S.fTipo=e.target.value;llenar()});
     $("ate-q").addEventListener("input",function(e){S.qAte=e.target.value;llenar()});
     $("ate-res").addEventListener("change",function(e){S.fRes=e.target.value;llenar()});
+  }else if(r==="clientes"){
+    v.innerHTML='<div class="wrap"><div class="head"><div><h1>Clientes</h1><div class="sub" id="cli-cuenta"></div></div><button class="btn primary" data-act="nuevo" data-kind="atencion">+ Atención</button></div>'+
+      '<div class="filters"><input id="cli-q" type="search" placeholder="Buscar por nombre o contacto" aria-label="Buscar clientes"></div>'+
+      '<div class="list" id="cli-lista"></div></div>';
+    $("cli-q").value=S.qCli||"";
+    $("cli-q").addEventListener("input",function(e){S.qCli=e.target.value;llenar()});
   }else{
     v.innerHTML='<div class="wrap"><div class="head"><h1>Reporte semanal</h1></div>'+
       '<div class="weeknav"><button class="btn small" data-act="semana" data-d="-1" aria-label="Semana anterior">‹ Anterior</button><b id="rep-rango"></b><button class="btn small" data-act="semana" data-d="1" id="rep-sig" aria-label="Semana siguiente">Siguiente ›</button></div>'+
@@ -284,6 +291,37 @@ function tarjetaAte(a,conHecho){
     '<button class="btn small" data-act="editar" data-kind="atencion" data-id="'+esc(a.id)+'">Editar</button></div></article>';
 }
 
+function claveCli(n){return String(n||"").trim().toLowerCase().replace(/\s+/g," ")}
+function clientes(){
+  var m={},l=[];
+  S.ate.slice().sort(function(x,y){return x.fecha===y.fecha?(String(x.creado||"")<String(y.creado||"")?-1:1):(x.fecha<y.fecha?-1:1)}).forEach(function(a){
+    var k=claveCli(a.cliente);if(!k)return;
+    var c=m[k];if(!c){c=m[k]={clave:k,nombre:String(a.cliente).trim(),contacto:"",ate:[],pend:null};l.push(c)}
+    c.ate.push(a);c.nombre=String(a.cliente).trim();if(a.contacto)c.contacto=a.contacto;c.ultima=a;
+    if(a.seguimiento&&!a.hecho&&(!c.pend||a.seguimiento<c.pend))c.pend=a.seguimiento;
+  });
+  return l.sort(function(x,y){return x.ultima.fecha===y.ultima.fecha?x.nombre.localeCompare(y.nombre,"es"):(x.ultima.fecha<y.ultima.fecha?1:-1)});
+}
+function tarjetaCli(c){
+  var n=c.ate.length,venc=c.pend&&c.pend<=hoy();
+  return '<article class="card"><div class="row"><h3>'+esc(c.nombre)+"</h3>"+pillRes(c.ultima.resultado)+"</div>"+
+    (c.contacto?'<div class="meta">'+esc(c.contacto)+"</div>":"")+
+    '<div class="meta">'+n+(n===1?" atención":" atenciones")+" · última el "+esc(fecha(c.ultima.fecha,true))+" ("+esc(c.ultima.tipo||"Consulta")+")</div>"+
+    '<div class="foot">'+(c.pend?'<span class="pill '+(venc?"warn":"")+'">Seguimiento: '+esc(fecha(c.pend))+"</span>":"")+
+    '<button class="btn small" data-act="cliente" data-cli="'+esc(c.clave)+'">Ver historial</button>'+
+    '<button class="btn small" data-act="nuevo" data-kind="atencion" data-cli="'+esc(c.clave)+'">+ Atención</button></div></article>';
+}
+function verCliente(clave){
+  var c=clientes().filter(function(x){return x.clave===clave})[0];if(!c)return;
+  S.editando=null;
+  $("sheet").innerHTML='<header><h2>'+esc(c.nombre)+'</h2><button class="btn small" data-act="cerrar" aria-label="Cerrar">Cerrar</button></header>'+
+    (c.contacto?'<div class="meta">'+esc(c.contacto)+"</div>":"")+
+    '<div class="meta">'+c.ate.length+(c.ate.length===1?" atención registrada":" atenciones registradas")+"</div>"+
+    '<button class="btn primary" data-act="nuevo" data-kind="atencion" data-cli="'+esc(c.clave)+'">+ Atención a este cliente</button>'+
+    '<div class="list">'+c.ate.slice().reverse().map(function(a){return tarjetaAte(a,false)}).join("")+"</div>";
+  $("sheet").setAttribute("aria-label","Historial del cliente");
+  $("scrim").hidden=false;
+}
 function datosSemana(off){
   var r=rangoSemana(off),a=r[0],b=r[1];
   var inm=S.inm.filter(function(x){return enRango(x,a,b)}).sort(function(x,y){return x.fecha<y.fecha?-1:1});
@@ -320,6 +358,11 @@ function llenar(){
       .sort(function(x,y){return x.fecha===y.fecha?((String(y.creado||"")<String(x.creado||"")?-1:1)):(x.fecha<y.fecha?1:-1)});
     $("ate-cuenta").textContent=S.ate.length+" en total";
     $("ate-lista").innerHTML=cargando("ate")&&!S.sinDb?textoCarga():(l2.length?l2.map(function(a){return tarjetaAte(a,false)}).join(""):(S.ate.length?vacio("Sin resultados","Prueba con otra búsqueda o filtro."):vacio("Aún no hay atenciones",S.soloLectura?"Aquí aparecerán las atenciones que se vayan registrando.":"Toca + Atención cada vez que atiendas a un cliente.")));
+  }else if(r==="clientes"){
+    var cs=clientes(),q3=(S.qCli||"").trim().toLowerCase();
+    var l3=cs.filter(function(c){return !q3||(c.nombre+" "+c.contacto).toLowerCase().indexOf(q3)>=0});
+    $("cli-cuenta").textContent=cs.length+(cs.length===1?" cliente":" clientes");
+    $("cli-lista").innerHTML=cargando("ate")&&!S.sinDb?textoCarga():(l3.length?l3.map(tarjetaCli).join(""):(cs.length?vacio("Sin resultados","Prueba con otra búsqueda."):vacio("Aún no hay clientes","Cada cliente aparece aquí al registrar su primera atención.")));
   }else{
     var w=datosSemana(S.semana);
     $("rep-rango").textContent=fecha(w.a)+" – "+fecha(w.b,true);
@@ -336,7 +379,15 @@ function llenar(){
 }
 
 /* ---------- Formularios ---------- */
-function campos(kind){
+function campoCaptador(actual){
+  if(!S.agentes||!S.agentes.length)return {n:"captador",l:"Captador (agente que lo captó)",ph:"Nombre del agente",lista:"captador"};
+  var o=[["","Sin captador"]],nombres=S.agentes.map(function(a){return a.nombre});
+  if(actual&&nombres.indexOf(actual)<0&&actual!=="Externo / otro")o.push([actual,actual]);
+  nombres.forEach(function(n){o.push([n,n])});
+  o.push(["Externo / otro","Externo / otro"]);
+  return {n:"captador",l:"Captador (agente que lo captó)",t:"select",o:o};
+}
+function campos(kind,actual){
   if(kind==="inmueble")return [
     {n:"titulo",l:"Título de la publicación",req:true,ph:"Apartamento 3 hab. en Los Olivos"},
     {n:"fecha",l:"Fecha de publicación",t:"date",req:true,half:true},
@@ -345,13 +396,13 @@ function campos(kind){
     {n:"operacion",l:"Operación",t:"select",o:OPERACIONES,half:true},
     {n:"zona",l:"Zona",ph:"Urbanización o sector",half:true},
     {n:"precio",l:"Precio (USD)",t:"number",half:true},
-    {n:"captador",l:"Captador (agente que lo captó)",ph:"Nombre del agente",lista:"captador"},
+    campoCaptador(actual&&actual.captador),
     {n:"enlace",l:"Enlace de la publicación",t:"url",ph:"Pega aquí el enlace de Marketplace"},
     {n:"enlace_novus",l:"Enlace en Novus",t:"url",ph:"Pega aquí el enlace de la página de Novus"},
     {n:"notas",l:"Notas",t:"textarea"}];
   var ops=[["","Sin inmueble"]].concat(S.inm.slice().sort(function(x,y){return x.fecha<y.fecha?1:-1}).map(function(i){return [i.id,i.titulo+(i.zona?" · "+i.zona:"")]}));
   return [
-    {n:"cliente",l:"Cliente",req:true,ph:"Nombre o usuario de Facebook"},
+    {n:"cliente",l:"Cliente",req:true,ph:"Nombre o usuario de Facebook",lista:"cliente"},
     {n:"contacto",l:"Contacto",ph:"Teléfono (opcional)",half:true},
     {n:"fecha",l:"Fecha",t:"date",req:true,half:true},
     {n:"tipo",l:"Tipo de atención",t:"select",o:TIPOS_ATE,half:true},
@@ -362,7 +413,8 @@ function campos(kind){
     {n:"notas",l:"Notas",t:"textarea"}];
 }
 function sugerencias(campo){
-  var v={};S.inm.forEach(function(i){var x=(i[campo]||"").trim();if(x)v[x]=1});
+  var v={},src=campo==="cliente"?S.ate:S.inm;
+  src.forEach(function(i){var x=String(i[campo]||"").trim();if(x)v[x]=1});
   return Object.keys(v).sort(function(a,b){return a.localeCompare(b,"es")});
 }
 function abrir(kind,id,preset){
@@ -371,7 +423,7 @@ function abrir(kind,id,preset){
   var base=kind==="inmueble"?{fecha:hoy(),estado:"Activa",tipo:"Apartamento",operacion:"Venta"}:{fecha:hoy(),tipo:"Consulta",canal:"Messenger",resultado:"Informado",inmueble_id:""};
   var v=Object.assign({},base,preset||{},doc||{});
   S.editando={kind:kind,id:doc?doc.id:null,doc:doc};
-  var cs=campos(kind),h="",i=0;
+  var cs=campos(kind,v),h="",i=0;
   function ctl(c){
     var val=v[c.n]==null?"":v[c.n],id2="f-"+c.n,x;
     if(c.t==="select")x='<select id="'+id2+'">'+c.o.map(function(o){var ov=Array.isArray(o)?o[0]:o,ol=Array.isArray(o)?o[1]:o;return '<option value="'+esc(ov)+'"'+(String(ov)===String(val)?" selected":"")+">"+esc(ol)+"</option>"}).join("")+"</select>";
@@ -390,7 +442,11 @@ function abrir(kind,id,preset){
   $("sheet").setAttribute("aria-label",nombre);
   $("scrim").hidden=false;
   $("form").addEventListener("submit",function(e){e.preventDefault();guardar()});
-  var first=$("f-"+cs[0].n);if(first&&!doc)first.focus();
+  if(kind==="atencion"){$("f-cliente").addEventListener("change",function(e){
+    var k=claveCli(e.target.value),c=clientes().filter(function(x){return x.clave===k})[0],fc=$("f-contacto");
+    if(c&&c.contacto&&fc&&!fc.value)fc.value=c.contacto;
+  })}
+  var first=$("f-"+cs[0].n);if(first&&!doc&&!(preset&&preset.cliente))first.focus();
 }
 function cerrar(){$("scrim").hidden=true;$("sheet").innerHTML="";S.editando=null;S.guardando=false}
 function mensajeError(e){
@@ -504,7 +560,13 @@ document.addEventListener("click",function(e){
   var b=e.target.closest("[data-act]");if(!b)return;
   var a=b.dataset.act;
   if(S.soloLectura&&(a==="nuevo"||a==="editar"||a==="hecho"||a==="borrar"))return;
-  if(a==="nuevo")abrir(b.dataset.kind,null,b.dataset.inm?{inmueble_id:b.dataset.inm}:null);
+  if(a==="nuevo"){
+    var pre=null;
+    if(b.dataset.inm)pre={inmueble_id:b.dataset.inm};
+    else if(b.dataset.cli){var cc=clientes().filter(function(x){return x.clave===b.dataset.cli})[0];if(cc)pre={cliente:cc.nombre,contacto:cc.contacto}}
+    abrir(b.dataset.kind,null,pre);
+  }
+  else if(a==="cliente")verCliente(b.dataset.cli);
   else if(a==="editar")abrir(b.dataset.kind,b.dataset.id);
   else if(a==="cerrar")cerrar();
   else if(a==="borrar")borrar(b);
@@ -524,6 +586,8 @@ async function cargar(){
   var b=await sb.from("atenciones").select("*").order("fecha",{ascending:false});
   if(a.error||b.error)S.error=a.error||b.error;
   else{S.error=null;S.inm=a.data||[];S.ate=b.data||[]}
+  var ag=await sb.from("agentes").select("nombre,agencia").eq("activo",true).order("nombre");
+  S.agentes=ag.data||[];
   var pf=await sb.from("perfiles").select("*");
   S.perfiles={};(pf.data||[]).forEach(function(x){S.perfiles[x.user_id]=x});
   var yo=S.sesion?S.perfiles[S.sesion.user.id]:null;

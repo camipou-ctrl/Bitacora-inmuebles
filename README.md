@@ -8,6 +8,7 @@ Es un sitio estático (HTML + JavaScript, sin paso de compilación) con Supabase
 
 - **Inmuebles:** título, fecha, tipo, operación, zona, precio, estado, captador (agente que lo captó), enlace de la publicación y enlace en Novus.
 - **Atenciones:** cliente, contacto, tipo de atención (consulta, seguimiento, visita, captación, negociación, etc.), inmueble relacionado, canal, resultado y fecha de seguimiento.
+- **Clientes:** cada cliente con su historial de atenciones, último resultado y seguimiento pendiente.
 - **Inicio:** conteo de la semana y seguimientos pendientes.
 - **Reporte semanal (lunes a domingo):** PDF que se comparte desde el teléfono, y resumen en texto para pegar en WhatsApp.
 

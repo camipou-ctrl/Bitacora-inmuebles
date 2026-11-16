@@ -183,3 +183,19 @@ begin
     alter publication supabase_realtime add table public.atenciones;
   end if;
 end $$;
+
+-- ===== Lista de agentes para el desplegable de Captador =====
+-- Los nombres se cargan directo en la base (no van en el repositorio).
+create table if not exists public.agentes (
+  nombre  text primary key,
+  agencia text,
+  activo  boolean not null default true
+);
+alter table public.agentes enable row level security;
+revoke all on public.agentes from anon;
+revoke all on public.agentes from authenticated;
+grant select on public.agentes to authenticated;
+drop policy if exists "agentes para el equipo" on public.agentes;
+create policy "agentes para el equipo" on public.agentes
+  for select to authenticated
+  using ((select privado.es_miembro()));
