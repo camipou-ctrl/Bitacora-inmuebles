@@ -113,3 +113,73 @@ create policy "supervisor ve atenciones" on public.atenciones
 -- Para dar de alta a alguien después de crear su usuario en Authentication > Users:
 --   insert into public.perfiles (user_id, nombre, rol)
 --   select id, 'Nombre', 'supervisor' from auth.users where email = 'correo@ejemplo.com';
+
+-- ===== Equipo: edición compartida, avisos en vivo y tipo de atención =====
+-- Toda persona con fila en public.perfiles ve y edita todos los registros.
+create or replace function privado.es_miembro()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.perfiles p where p.user_id = (select auth.uid()));
+$$;
+revoke all on function privado.es_miembro() from public, anon;
+grant execute on function privado.es_miembro() to authenticated;
+
+drop policy if exists "inmuebles propios" on public.inmuebles;
+drop policy if exists "supervisor ve inmuebles" on public.inmuebles;
+drop policy if exists "equipo inmuebles" on public.inmuebles;
+create policy "equipo inmuebles" on public.inmuebles
+  for all to authenticated
+  using ((select privado.es_miembro()))
+  with check ((select privado.es_miembro()));
+
+drop policy if exists "atenciones propias" on public.atenciones;
+drop policy if exists "supervisor ve atenciones" on public.atenciones;
+drop policy if exists "equipo atenciones" on public.atenciones;
+create policy "equipo atenciones" on public.atenciones
+  for all to authenticated
+  using ((select privado.es_miembro()))
+  with check ((select privado.es_miembro()));
+
+drop policy if exists "perfil propio o supervisor" on public.perfiles;
+drop policy if exists "perfiles del equipo" on public.perfiles;
+create policy "perfiles del equipo" on public.perfiles
+  for select to authenticated
+  using ((select privado.es_miembro()));
+
+alter table public.inmuebles  add column if not exists editado timestamptz, add column if not exists editado_por uuid;
+alter table public.atenciones add column if not exists editado timestamptz, add column if not exists editado_por uuid;
+
+create or replace function privado.marcar_edicion()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.editado := now();
+  new.editado_por := (select auth.uid());
+  return new;
+end;
+$$;
+
+drop trigger if exists inmuebles_marcar_edicion on public.inmuebles;
+create trigger inmuebles_marcar_edicion before update on public.inmuebles
+  for each row execute function privado.marcar_edicion();
+drop trigger if exists atenciones_marcar_edicion on public.atenciones;
+create trigger atenciones_marcar_edicion before update on public.atenciones
+  for each row execute function privado.marcar_edicion();
+
+alter table public.atenciones add column if not exists tipo text not null default 'Consulta';
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'inmuebles') then
+    alter publication supabase_realtime add table public.inmuebles;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'atenciones') then
+    alter publication supabase_realtime add table public.atenciones;
+  end if;
+end $$;

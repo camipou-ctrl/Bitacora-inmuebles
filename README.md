@@ -7,7 +7,7 @@ Es un sitio estático (HTML + JavaScript, sin paso de compilación) con Supabase
 ## Qué hace
 
 - **Inmuebles:** título, fecha, tipo, operación, zona, precio, estado, captador (agente que lo captó), enlace de la publicación y enlace en Novus.
-- **Atenciones:** cliente, contacto, inmueble consultado, canal, resultado y fecha de seguimiento.
+- **Atenciones:** cliente, contacto, tipo de atención (consulta, seguimiento, visita, captación, negociación, etc.), inmueble relacionado, canal, resultado y fecha de seguimiento.
 - **Inicio:** conteo de la semana y seguimientos pendientes.
 - **Reporte semanal (lunes a domingo):** PDF que se comparte desde el teléfono, y resumen en texto para pegar en WhatsApp.
 
@@ -22,7 +22,7 @@ No se conecta con Meta: Marketplace no ofrece una API para publicaciones de perf
 
 ## Seguridad
 
-Las tablas tienen RLS: cada usuario solo lee y escribe sus propios registros. Quien tenga rol `supervisor` en la tabla `perfiles` ve los registros de todos, en solo lectura. La clave `anon` puede estar en el repositorio porque sin iniciar sesión no da acceso a ningún dato.
+Las tablas tienen RLS: solo las personas del equipo (quienes tienen fila en la tabla `perfiles`) ven y editan los registros, y todos comparten los mismos. Los cambios de una persona le aparecen a las demás en vivo. La clave `anon` puede estar en el repositorio porque sin iniciar sesión no da acceso a ningún dato.
 
 ## Estructura
 

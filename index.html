@@ -178,8 +178,9 @@ td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
 var TIPOS=["Apartamento","Casa","Townhouse","Local","Oficina","Terreno","Galpón","Otro"];
 var OPERACIONES=["Venta","Alquiler"];
 var ESTADOS=["Activa","Pausada","Vendida / alquilada","Eliminada"];
-var CANALES=["Messenger","WhatsApp","Llamada","Comentario","Otro"];
-var RESULTADOS=["Informado","Interesado","Visita agendada","Sin respuesta","No interesado","Cerrado"];
+var CANALES=["Messenger","WhatsApp","Llamada","En persona","Instagram","Correo","Comentario","Otro"];
+var TIPOS_ATE=["Consulta","Seguimiento","Visita al inmueble","Captación","Oferta o negociación","Documentación","Cierre","Postventa","Otro"];
+var RESULTADOS=["Informado","Interesado","Visita agendada","En negociación","Sin respuesta","No interesado","Cerrado"];
 var MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 var RUTAS=["inicio","inmuebles","atenciones","reporte"];
 
@@ -199,7 +200,7 @@ function ruta(){var h=location.hash.replace("#","");return RUTAS.indexOf(h)>=0?h
 function inmPorId(id){for(var i=0;i<S.inm.length;i++)if(S.inm[i].id===id)return S.inm[i];return null}
 function enRango(x,a,b){return x.fecha>=a&&x.fecha<=b}
 function pillEstado(e){var c=e==="Activa"?"ok":e==="Pausada"?"warn":e==="Eliminada"?"bad":"acc";return '<span class="pill '+c+'">'+esc(e||"Activa")+"</span>"}
-function pillRes(r){var c=(r==="Interesado"||r==="Visita agendada"||r==="Cerrado")?"ok":r==="Sin respuesta"?"warn":r==="No interesado"?"bad":"";return '<span class="pill '+c+'">'+esc(r||"Informado")+"</span>"}
+function pillRes(r){var c=(r==="Interesado"||r==="Visita agendada"||r==="En negociación"||r==="Cerrado")?"ok":r==="Sin respuesta"?"warn":r==="No interesado"?"bad":"";return '<span class="pill '+c+'">'+esc(r||"Informado")+"</span>"}
 function pendientes(){return S.ate.filter(function(a){return a.seguimiento&&!a.hecho}).sort(function(a,b){return a.seguimiento<b.seguimiento?-1:1})}
 function cargando(k){return !S.listo[k]}
 
@@ -234,9 +235,10 @@ function montar(){
     $("inm-estado").addEventListener("change",function(e){S.fEstado=e.target.value;llenar()});
   }else if(r==="atenciones"){
     v.innerHTML='<div class="wrap"><div class="head"><div><h1>Atenciones a clientes</h1><div class="sub" id="ate-cuenta"></div></div><button class="btn primary" data-act="nuevo" data-kind="atencion">+ Atención</button></div>'+
-      '<div class="filters"><input id="ate-q" type="search" placeholder="Buscar por cliente o inmueble" aria-label="Buscar atenciones"><select id="ate-res" aria-label="Filtrar por resultado"><option value="">Todos los resultados</option>'+RESULTADOS.map(function(e){return "<option>"+esc(e)+"</option>"}).join("")+'</select></div>'+
+      '<div class="filters"><input id="ate-q" type="search" placeholder="Buscar por cliente o inmueble" aria-label="Buscar atenciones"><select id="ate-tipo" aria-label="Filtrar por tipo"><option value="">Todos los tipos</option>'+TIPOS_ATE.map(function(e){return "<option>"+esc(e)+"</option>"}).join("")+'</select><select id="ate-res" aria-label="Filtrar por resultado"><option value="">Todos los resultados</option>'+RESULTADOS.map(function(e){return "<option>"+esc(e)+"</option>"}).join("")+'</select></div>'+
       '<div class="list" id="ate-lista"></div></div>';
-    $("ate-q").value=S.qAte;$("ate-res").value=S.fRes;
+    $("ate-q").value=S.qAte;$("ate-res").value=S.fRes;$("ate-tipo").value=S.fTipo||"";
+    $("ate-tipo").addEventListener("change",function(e){S.fTipo=e.target.value;llenar()});
     $("ate-q").addEventListener("input",function(e){S.qAte=e.target.value;llenar()});
     $("ate-res").addEventListener("change",function(e){S.fRes=e.target.value;llenar()});
   }else{
@@ -244,6 +246,7 @@ function montar(){
       '<div class="weeknav"><button class="btn small" data-act="semana" data-d="-1" aria-label="Semana anterior">‹ Anterior</button><b id="rep-rango"></b><button class="btn small" data-act="semana" data-d="1" id="rep-sig" aria-label="Semana siguiente">Siguiente ›</button></div>'+
       '<div class="tiles" id="rep-tiles"></div>'+
       '<div class="actions"><button class="btn primary" data-act="pdf" id="rep-pdf">Enviar PDF</button><button class="btn" data-act="copiar">Copiar resumen</button></div>'+
+      '<section class="panel"><h2>Atenciones por tipo</h2><div class="bars" id="rep-tipo"></div></section>'+
       '<section class="panel"><h2>Atenciones por resultado</h2><div class="bars" id="rep-res"></div></section>'+
       '<section class="panel"><h2>Inmuebles publicados</h2><div class="tablewrap" id="rep-inm"></div></section>'+
       '<section class="panel"><h2>Clientes atendidos</h2><div class="tablewrap" id="rep-ate"></div></section></div>';
@@ -254,7 +257,7 @@ function montar(){
 function vacio(titulo,texto){return '<div class="empty"><b>'+esc(titulo)+"</b>"+esc(texto)+"</div>"}
 function textoCarga(){return S.lento?vacio("Todavía no se puede leer la base de datos","Revisa la conexión. La app sigue intentando."):vacio("Cargando…","")}
 
-function autor(x){var p=S.soloLectura?S.perfiles[x.user_id]:null;return p?'<div class="meta">Registrado por '+esc(p.nombre)+"</div>":""}
+function autor(x){var p=Object.keys(S.perfiles).length>1?S.perfiles[x.user_id]:null;return p?'<div class="meta">Registrado por '+esc(p.nombre)+"</div>":""}
 function tarjetaInm(i){
   var n=S.ate.filter(function(a){return a.inmueble_id===i.id}).length;
   var u=enlaceSeguro(i.enlace),un=enlaceSeguro(i.enlace_novus);
@@ -273,8 +276,8 @@ function tarjetaAte(a,conHecho){
   var vencido=a.seguimiento&&!a.hecho&&a.seguimiento<=hoy();
   var seg=a.seguimiento?(a.hecho?"Seguimiento hecho":"Seguimiento: "+fecha(a.seguimiento)):"";
   return '<article class="card"><div class="row"><h3>'+esc(a.cliente)+"</h3>"+pillRes(a.resultado)+"</div>"+
-    '<div class="meta">'+esc(fecha(a.fecha,true))+" · "+esc(a.canal||"")+(a.contacto?" · "+esc(a.contacto):"")+"</div>"+
-    '<div class="meta">'+esc(i?i.titulo:"Consulta general")+"</div>"+
+    '<div class="meta">'+esc(fecha(a.fecha,true))+" · "+esc(a.tipo||"Consulta")+" · "+esc(a.canal||"")+(a.contacto?" · "+esc(a.contacto):"")+"</div>"+
+    '<div class="meta">'+esc(i?i.titulo:"Sin inmueble")+"</div>"+
     (a.notas?'<div class="meta">'+esc(a.notas)+"</div>":"")+autor(a)+
     '<div class="foot">'+(seg?'<span class="pill '+(vencido?"warn":"")+'">'+esc(seg)+"</span>":"")+
     (conHecho?'<button class="btn small" data-act="hecho" data-id="'+esc(a.id)+'">Marcar hecho</button>':"")+
@@ -287,12 +290,14 @@ function datosSemana(off){
   var ate=S.ate.filter(function(x){return enRango(x,a,b)}).sort(function(x,y){return x.fecha<y.fecha?-1:1});
   var porRes=RESULTADOS.map(function(k){return [k,ate.filter(function(x){return (x.resultado||"Informado")===k}).length]});
   var porCanal=CANALES.map(function(k){return [k,ate.filter(function(x){return x.canal===k}).length]}).filter(function(p){return p[1]>0});
-  return {a:a,b:b,inm:inm,ate:ate,porRes:porRes,porCanal:porCanal,pend:pendientes().length};
+  var porTipo=TIPOS_ATE.map(function(k){return [k,ate.filter(function(x){return (x.tipo||"Consulta")===k}).length]}).filter(function(p){return p[1]>0});
+  return {a:a,b:b,inm:inm,ate:ate,porRes:porRes,porCanal:porCanal,porTipo:porTipo,pend:pendientes().length};
 }
 
 function llenar(){
   var b=$("banner");
   if(S.error){b.hidden=false;b.textContent="No se pudieron leer los datos. Revisa la conexión y vuelve a abrir la app."}
+  else if(S.sesion&&S.sinPerfil&&S.listo.inm){b.hidden=false;b.textContent="Tu usuario todavía no está agregado al equipo. Pide que te den acceso."}
   else b.hidden=true;
   if(S.sinDb||!S.sesion)return;
 
@@ -311,7 +316,7 @@ function llenar(){
     $("inm-lista").innerHTML=cargando("inm")&&!S.sinDb?textoCarga():(l.length?l.map(tarjetaInm).join(""):(S.inm.length?vacio("Sin resultados","Prueba con otra búsqueda o filtro."):vacio("Aún no hay inmuebles",S.soloLectura?"Aquí aparecerán los inmuebles que se vayan registrando.":"Toca + Inmueble cada vez que subas una publicación a Marketplace.")));
   }else if(r==="atenciones"){
     var q2=S.qAte.trim().toLowerCase();
-    var l2=S.ate.filter(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return (!S.fRes||(a.resultado||"Informado")===S.fRes)&&(!q2||((a.cliente||"")+" "+(i?i.titulo:"")+" "+(a.contacto||"")).toLowerCase().indexOf(q2)>=0)})
+    var l2=S.ate.filter(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return (!S.fRes||(a.resultado||"Informado")===S.fRes)&&(!S.fTipo||(a.tipo||"Consulta")===S.fTipo)&&(!q2||((a.cliente||"")+" "+(i?i.titulo:"")+" "+(a.contacto||"")).toLowerCase().indexOf(q2)>=0)})
       .sort(function(x,y){return x.fecha===y.fecha?((String(y.creado||"")<String(x.creado||"")?-1:1)):(x.fecha<y.fecha?1:-1)});
     $("ate-cuenta").textContent=S.ate.length+" en total";
     $("ate-lista").innerHTML=cargando("ate")&&!S.sinDb?textoCarga():(l2.length?l2.map(function(a){return tarjetaAte(a,false)}).join(""):(S.ate.length?vacio("Sin resultados","Prueba con otra búsqueda o filtro."):vacio("Aún no hay atenciones",S.soloLectura?"Aquí aparecerán las atenciones que se vayan registrando.":"Toca + Atención cada vez que atiendas a un cliente.")));
@@ -322,9 +327,11 @@ function llenar(){
     $("rep-pdf").hidden=!window.jspdf;
     $("rep-tiles").innerHTML='<div class="tile"><b>'+w.inm.length+'</b><span>Inmuebles publicados</span></div><div class="tile"><b>'+w.ate.length+'</b><span>Clientes atendidos</span></div><div class="tile"><b>'+w.ate.filter(function(a){return a.resultado==="Visita agendada"||a.resultado==="Cerrado"}).length+"</b><span>Visitas y cierres</span></div>";
     var max=Math.max.apply(null,w.porRes.map(function(p){return p[1]}).concat([1]));
+    var maxT=Math.max.apply(null,w.porTipo.map(function(p){return p[1]}).concat([1]));
+    $("rep-tipo").innerHTML=w.porTipo.length?w.porTipo.map(function(p){return '<div class="bar"><span>'+esc(p[0])+'</span><div class="track"><i style="width:'+Math.round(p[1]/maxT*100)+'%"></i></div><em>'+p[1]+"</em></div>"}).join(""):'<div class="sub">Sin atenciones registradas esta semana.</div>';
     $("rep-res").innerHTML=w.ate.length?w.porRes.map(function(p){return '<div class="bar"><span>'+esc(p[0])+'</span><div class="track"><i style="width:'+Math.round(p[1]/max*100)+'%"></i></div><em>'+p[1]+"</em></div>"}).join(""):'<div class="sub">Sin atenciones registradas esta semana.</div>';
     $("rep-inm").innerHTML=w.inm.length?"<table><thead><tr><th>Fecha</th><th>Inmueble</th><th>Captador</th><th>Zona</th><th>Precio</th><th>Estado</th></tr></thead><tbody>"+w.inm.map(function(i){return '<tr><td class="num">'+esc(fecha(i.fecha))+"</td><td>"+esc(i.titulo)+"</td><td>"+esc(i.captador||"")+"</td><td>"+esc(i.zona||"")+'</td><td class="num">'+esc(dinero(i.precio))+"</td><td>"+esc(i.estado||"Activa")+"</td></tr>"}).join("")+"</tbody></table>":'<div class="sub">Sin inmuebles publicados esta semana.</div>';
-    $("rep-ate").innerHTML=w.ate.length?"<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Inmueble</th><th>Canal</th><th>Resultado</th></tr></thead><tbody>"+w.ate.map(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return '<tr><td class="num">'+esc(fecha(a.fecha))+"</td><td>"+esc(a.cliente)+"</td><td>"+esc(i?i.titulo:"Consulta general")+"</td><td>"+esc(a.canal||"")+"</td><td>"+esc(a.resultado||"Informado")+"</td></tr>"}).join("")+"</tbody></table>":'<div class="sub">Sin atenciones registradas esta semana.</div>';
+    $("rep-ate").innerHTML=w.ate.length?"<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Inmueble</th><th>Canal</th><th>Resultado</th></tr></thead><tbody>"+w.ate.map(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return '<tr><td class="num">'+esc(fecha(a.fecha))+"</td><td>"+esc(a.cliente)+"</td><td>"+esc(a.tipo||"Consulta")+"</td><td>"+esc(i?i.titulo:"Sin inmueble")+"</td><td>"+esc(a.canal||"")+"</td><td>"+esc(a.resultado||"Informado")+"</td></tr>"}).join("")+"</tbody></table>":'<div class="sub">Sin atenciones registradas esta semana.</div>';
   }
 }
 
@@ -342,14 +349,15 @@ function campos(kind){
     {n:"enlace",l:"Enlace de la publicación",t:"url",ph:"Pega aquí el enlace de Marketplace"},
     {n:"enlace_novus",l:"Enlace en Novus",t:"url",ph:"Pega aquí el enlace de la página de Novus"},
     {n:"notas",l:"Notas",t:"textarea"}];
-  var ops=[["","Consulta general (sin inmueble)"]].concat(S.inm.slice().sort(function(x,y){return x.fecha<y.fecha?1:-1}).map(function(i){return [i.id,i.titulo+(i.zona?" · "+i.zona:"")]}));
+  var ops=[["","Sin inmueble"]].concat(S.inm.slice().sort(function(x,y){return x.fecha<y.fecha?1:-1}).map(function(i){return [i.id,i.titulo+(i.zona?" · "+i.zona:"")]}));
   return [
     {n:"cliente",l:"Cliente",req:true,ph:"Nombre o usuario de Facebook"},
     {n:"contacto",l:"Contacto",ph:"Teléfono (opcional)",half:true},
     {n:"fecha",l:"Fecha",t:"date",req:true,half:true},
-    {n:"inmueble_id",l:"Inmueble por el que preguntó",t:"select",o:ops},
+    {n:"tipo",l:"Tipo de atención",t:"select",o:TIPOS_ATE,half:true},
     {n:"canal",l:"Canal",t:"select",o:CANALES,half:true},
-    {n:"resultado",l:"Resultado",t:"select",o:RESULTADOS,half:true},
+    {n:"inmueble_id",l:"Inmueble relacionado",t:"select",o:ops},
+    {n:"resultado",l:"Resultado",t:"select",o:RESULTADOS},
     {n:"seguimiento",l:"Fecha de seguimiento (opcional)",t:"date"},
     {n:"notas",l:"Notas",t:"textarea"}];
 }
@@ -360,7 +368,7 @@ function sugerencias(campo){
 function abrir(kind,id,preset){
   var col=kind==="inmueble"?S.inm:S.ate, doc=null;
   if(id){for(var k=0;k<col.length;k++)if(col[k].id===id)doc=col[k]}
-  var base=kind==="inmueble"?{fecha:hoy(),estado:"Activa",tipo:"Apartamento",operacion:"Venta"}:{fecha:hoy(),canal:"Messenger",resultado:"Informado",inmueble_id:""};
+  var base=kind==="inmueble"?{fecha:hoy(),estado:"Activa",tipo:"Apartamento",operacion:"Venta"}:{fecha:hoy(),tipo:"Consulta",canal:"Messenger",resultado:"Informado",inmueble_id:""};
   var v=Object.assign({},base,preset||{},doc||{});
   S.editando={kind:kind,id:doc?doc.id:null,doc:doc};
   var cs=campos(kind),h="",i=0;
@@ -436,6 +444,7 @@ function resumenTexto(){
   L.push("Inmuebles publicados: "+w.inm.length);
   L.push("Clientes atendidos: "+w.ate.length);
   w.porRes.forEach(function(p){if(p[1])L.push("  • "+p[0]+": "+p[1])});
+  if(w.porTipo.length)L.push("Por tipo: "+w.porTipo.map(function(p){return p[0]+" "+p[1]}).join(", "));
   if(w.porCanal.length)L.push("Por canal: "+w.porCanal.map(function(p){return p[0]+" "+p[1]}).join(", "));
   if(w.inm.length){L.push("");L.push("Publicaciones de la semana:");w.inm.forEach(function(i){L.push("  • "+i.titulo+(i.zona?" ("+i.zona+")":"")+(dinero(i.precio)?" – "+dinero(i.precio):"")+(i.captador?" · Captador: "+i.captador:""))})}
   return L.join("\n");
@@ -451,13 +460,14 @@ function crearPdf(){
   y+=84;
   function titulo(t){doc.setFont("helvetica","bold");doc.setFontSize(12.5);doc.text(t,M,y);y+=8}
   function tabla(head,body){doc.autoTable({startY:y,head:[head],body:body,margin:{left:M,right:M},styles:{font:"helvetica",fontSize:9,cellPadding:5,overflow:"linebreak"},headStyles:{fillColor:verde,textColor:255},alternateRowStyles:{fillColor:[241,245,244]}});y=doc.lastAutoTable.finalY+26}
+  if(w.porTipo.length){titulo("Atenciones por tipo");tabla(["Tipo","Cantidad"],w.porTipo.map(function(p){return [p[0],String(p[1])]}))}
   titulo("Atenciones por resultado");
   tabla(["Resultado","Cantidad"],w.porRes.map(function(p){return [p[0],String(p[1])]}));
   titulo("Inmuebles publicados ("+w.inm.length+")");
   if(w.inm.length)tabla(["Fecha","Inmueble","Captador","Tipo","Zona","Precio","Estado"],w.inm.map(function(i){return [fecha(i.fecha),i.titulo||"",i.captador||"",[i.tipo,i.operacion].filter(Boolean).join(" / "),i.zona||"",dinero(i.precio),i.estado||"Activa"]}));
   else{doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Sin inmuebles publicados esta semana.",M,y+12);y+=40}
   titulo("Clientes atendidos ("+w.ate.length+")");
-  if(w.ate.length)tabla(["Fecha","Cliente","Inmueble","Canal","Resultado","Notas"],w.ate.map(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return [fecha(a.fecha),a.cliente||"",i?i.titulo:"Consulta general",a.canal||"",a.resultado||"Informado",a.notas||""]}));
+  if(w.ate.length)tabla(["Fecha","Cliente","Tipo","Inmueble","Canal","Resultado","Notas"],w.ate.map(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return [fecha(a.fecha),a.cliente||"",a.tipo||"Consulta",i?i.titulo:"Sin inmueble",a.canal||"",a.resultado||"Informado",a.notas||""]}));
   else{doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Sin atenciones registradas esta semana.",M,y+12)}
   return {blob:doc.output("blob"),nombre:"Reporte-semanal-"+w.a+".pdf"};
 }
@@ -517,11 +527,32 @@ async function cargar(){
   var pf=await sb.from("perfiles").select("*");
   S.perfiles={};(pf.data||[]).forEach(function(x){S.perfiles[x.user_id]=x});
   var yo=S.sesion?S.perfiles[S.sesion.user.id]:null;
-  S.soloLectura=!!(yo&&yo.rol==="supervisor");
+  S.soloLectura=false;
+  S.sinPerfil=!yo;
+  suscribir();
   document.body.classList.toggle("lectura",S.soloLectura);
   S.listo.inm=S.listo.ate=true;
   llenar();
 }
+/* Avisos en vivo: cuando otra persona del equipo registra o edita, se recarga y se avisa. */
+function alCambio(que,p){
+  clearTimeout(S.tRecarga);S.tRecarga=setTimeout(cargar,500);
+  var fila=p&&p.new&&p.new.id?p.new:null;if(!fila)return;
+  var nuevo=p.eventType==="INSERT",quien=nuevo?fila.user_id:(fila.editado_por||fila.user_id),yo=S.sesion&&S.sesion.user.id;
+  if(!quien||quien===yo)return;
+  var n=(S.perfiles[quien]||{}).nombre||"Otra persona";
+  toast(n+(nuevo?" registró ":" actualizó ")+que);
+}
+function suscribir(){
+  if(S.canal||!sb||!S.sesion)return;
+  try{
+    S.canal=sb.channel("cambios-bitacora")
+      .on("postgres_changes",{event:"*",schema:"public",table:"inmuebles"},function(p){alCambio("un inmueble",p)})
+      .on("postgres_changes",{event:"*",schema:"public",table:"atenciones"},function(p){alCambio("una atención",p)})
+      .subscribe();
+  }catch(e){S.canal=null}
+}
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.sesion&&$("scrim").hidden)cargar()});
 async function iniciar(){
   var c=window.BITACORA_CONFIG||{};
   if(!window.supabase||!c.SUPABASE_URL||!c.SUPABASE_ANON_KEY||/TU-PROYECTO/.test(c.SUPABASE_URL)){S.sinDb=true;montar();return}
@@ -529,7 +560,7 @@ async function iniciar(){
   try{var r=await sb.auth.getSession();S.sesion=r.data.session}catch(e){S.sesion=null}
   sb.auth.onAuthStateChange(function(ev,ses){
     var antes=!!S.sesion;S.sesion=ses;
-    if(!!ses!==antes){if(!ses){S.inm=[];S.ate=[];S.perfiles={};S.soloLectura=false;S.listo.inm=S.listo.ate=false}montar();if(ses)cargar()}
+    if(!!ses!==antes){if(!ses){S.inm=[];S.ate=[];S.perfiles={};S.soloLectura=false;S.sinPerfil=false;S.listo.inm=S.listo.ate=false;if(S.canal){try{sb.removeChannel(S.canal)}catch(e){}S.canal=null}}montar();if(ses)cargar()}
   });
   montar();
   if(S.sesion)cargar();
