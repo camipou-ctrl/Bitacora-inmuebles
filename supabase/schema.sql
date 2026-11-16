@@ -63,3 +63,53 @@ revoke all on public.atenciones from anon;
 -- Columnas agregadas después de la primera versión (para bases ya creadas).
 alter table public.inmuebles add column if not exists captador text;
 alter table public.inmuebles add column if not exists enlace_novus text;
+
+-- Perfiles y rol de supervisor: un supervisor ve los registros de todos, en solo lectura.
+create table if not exists public.perfiles (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  nombre  text not null,
+  rol     text not null default 'asistente' check (rol in ('asistente', 'supervisor'))
+);
+alter table public.perfiles enable row level security;
+
+create schema if not exists privado;
+
+create or replace function privado.es_supervisor()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfiles p
+    where p.user_id = (select auth.uid()) and p.rol = 'supervisor'
+  );
+$$;
+
+revoke all on function privado.es_supervisor() from public, anon;
+grant usage on schema privado to authenticated;
+grant execute on function privado.es_supervisor() to authenticated;
+
+revoke all on public.perfiles from anon;
+revoke all on public.perfiles from authenticated;
+grant select on public.perfiles to authenticated;
+
+drop policy if exists "perfil propio o supervisor" on public.perfiles;
+create policy "perfil propio o supervisor" on public.perfiles
+  for select to authenticated
+  using (user_id = (select auth.uid()) or (select privado.es_supervisor()));
+
+drop policy if exists "supervisor ve inmuebles" on public.inmuebles;
+create policy "supervisor ve inmuebles" on public.inmuebles
+  for select to authenticated
+  using ((select privado.es_supervisor()));
+
+drop policy if exists "supervisor ve atenciones" on public.atenciones;
+create policy "supervisor ve atenciones" on public.atenciones
+  for select to authenticated
+  using ((select privado.es_supervisor()));
+
+-- Para dar de alta a alguien después de crear su usuario en Authentication > Users:
+--   insert into public.perfiles (user_id, nombre, rol)
+--   select id, 'Nombre', 'supervisor' from auth.users where email = 'correo@ejemplo.com';

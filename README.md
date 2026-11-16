@@ -22,7 +22,7 @@ No se conecta con Meta: Marketplace no ofrece una API para publicaciones de perf
 
 ## Seguridad
 
-Las tablas tienen RLS: cada usuario solo lee y escribe sus propios registros. La clave `anon` puede estar en el repositorio porque sin iniciar sesión no da acceso a ningún dato.
+Las tablas tienen RLS: cada usuario solo lee y escribe sus propios registros. Quien tenga rol `supervisor` en la tabla `perfiles` ve los registros de todos, en solo lectura. La clave `anon` puede estar en el repositorio porque sin iniciar sesión no da acceso a ningún dato.
 
 ## Estructura
 
