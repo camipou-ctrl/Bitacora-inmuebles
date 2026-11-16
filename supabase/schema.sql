@@ -11,7 +11,9 @@ create table if not exists public.inmuebles (
   operacion  text,
   zona       text,
   precio     numeric,
+  captador   text,
   enlace     text,
+  enlace_novus text,
   estado     text not null default 'Activa',
   notas      text,
   creado     timestamptz not null default now()
@@ -57,3 +59,7 @@ grant select, insert, update, delete on public.inmuebles to authenticated;
 grant select, insert, update, delete on public.atenciones to authenticated;
 revoke all on public.inmuebles from anon;
 revoke all on public.atenciones from anon;
+
+-- Columnas agregadas después de la primera versión (para bases ya creadas).
+alter table public.inmuebles add column if not exists captador text;
+alter table public.inmuebles add column if not exists enlace_novus text;

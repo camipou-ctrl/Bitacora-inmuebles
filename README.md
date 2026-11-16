@@ -6,7 +6,7 @@ Es un sitio estático (HTML + JavaScript, sin paso de compilación) con Supabase
 
 ## Qué hace
 
-- **Inmuebles:** título, fecha, tipo, operación, zona, precio, estado y enlace de la publicación.
+- **Inmuebles:** título, fecha, tipo, operación, zona, precio, estado, captador (agente que lo captó), enlace de la publicación y enlace en Novus.
 - **Atenciones:** cliente, contacto, inmueble consultado, canal, resultado y fecha de seguimiento.
 - **Inicio:** conteo de la semana y seguimientos pendientes.
 - **Reporte semanal (lunes a domingo):** PDF que se comparte desde el teléfono, y resumen en texto para pegar en WhatsApp.
