@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d7566">
+<meta name="robots" content="noindex">
+<title>Bitácora de Inmuebles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Plan: herramienta de registro diario para teléfono. Una columna, barra de pestañas abajo
+   (arriba en PC), hojas de formulario que suben desde abajo. Verde azulado como acento,
+   grises fríos con leve sesgo al acento. */
+:root{
+  --bg:#f1f5f4; --surface:#ffffff; --surface-2:#e7eeec; --ink:#14262a; --muted:#587075; --line:#d5dfdc;
+  --accent:#0d7566; --accent-ink:#ffffff; --accent-soft:#d9efea;
+  --ok:#1f7a3d; --ok-soft:#dff2e4; --warn:#9a5b00; --warn-soft:#fbecd0; --bad:#b3332b; --bad-soft:#f9dedb;
+  --font-display:"Bricolage Grotesque","Figtree",system-ui,sans-serif;
+  --font-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0f1a1c; --surface:#17262a; --surface-2:#1f3236; --ink:#e8f1ef; --muted:#93aaa9; --line:#2b4146;
+    --accent:#3fc2ad; --accent-ink:#06211d; --accent-soft:#16403a;
+    --ok:#6fd38d; --ok-soft:#173a24; --warn:#f0b65a; --warn-soft:#40300f; --bad:#f08b83; --bad-soft:#45201d;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0f1a1c; --surface:#17262a; --surface-2:#1f3236; --ink:#e8f1ef; --muted:#93aaa9; --line:#2b4146;
+  --accent:#3fc2ad; --accent-ink:#06211d; --accent-soft:#16403a;
+  --ok:#6fd38d; --ok-soft:#173a24; --warn:#f0b65a; --warn-soft:#40300f; --bad:#f08b83; --bad-soft:#45201d;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.45;
+  display:flex;flex-direction:column;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;line-height:1.15}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+.top{display:flex;align-items:center;gap:16px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-family:var(--font-display);font-weight:700;font-size:1.15rem;letter-spacing:-.01em;white-space:nowrap}
+.brand span{color:var(--accent)}
+main{flex:1;overflow-y:auto;padding:16px 16px 28px}
+.wrap{max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+
+.tabs{display:flex;background:var(--surface);border-top:1px solid var(--line)}
+.tabs a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px 11px;text-decoration:none;
+  color:var(--muted);font-size:.74rem;font-weight:600;border-top:3px solid transparent}
+.tabs a svg{width:22px;height:22px}
+.tabs a[aria-current="page"]{color:var(--accent);border-top-color:var(--accent)}
+@media (min-width:800px){
+  body{flex-direction:column}
+  .top{order:0}
+  .tabs{order:1;border-top:0;border-bottom:1px solid var(--line);justify-content:center;gap:8px;padding:0 16px}
+  .tabs a{flex:0 0 auto;flex-direction:row;gap:8px;padding:12px 16px;font-size:.92rem;border-top:0;border-bottom:3px solid transparent}
+  .tabs a[aria-current="page"]{border-bottom-color:var(--accent)}
+  main{order:2}
+}
+
+.banner{padding:10px 14px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-weight:500;font-size:.92rem}
+.banner[hidden]{display:none}
+body.anon .tabs{display:none}
+.login{max-width:380px;margin:24px auto 0;display:flex;flex-direction:column;gap:12px}
+.login h1{font-size:1.5rem}
+
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.head h1{font-size:1.5rem}
+.sub{color:var(--muted);font-size:.9rem}
+
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 12px 10px}
+.tile b{display:block;font-family:var(--font-display);font-size:1.9rem;line-height:1;font-variant-numeric:tabular-nums}
+.tile span{display:block;margin-top:6px;color:var(--muted);font-size:.8rem;font-weight:500}
+.tile.alert b{color:var(--warn)}
+
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:10px 16px;border-radius:12px;
+  border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.small{min-height:36px;padding:6px 12px;font-size:.88rem;border-radius:10px}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn[hidden]{display:none}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.panel h2{font-size:1.05rem;margin-bottom:10px}
+.list{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.card .row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.card h3{font-family:var(--font-body);font-size:1rem;font-weight:700;overflow-wrap:anywhere}
+.meta{color:var(--muted);font-size:.87rem;overflow-wrap:anywhere}
+.price{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.card .foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.76rem;font-weight:700;white-space:nowrap;background:var(--surface-2);color:var(--muted)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.acc{background:var(--accent-soft);color:var(--accent)}
+.empty{padding:26px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--radius)}
+.empty b{display:block;color:var(--ink);margin-bottom:4px}
+
+.filters{display:flex;gap:10px;flex-wrap:wrap}
+.filters input,.filters select{flex:1 1 160px;min-width:0}
+input,select,textarea{width:100%;min-height:44px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+textarea{min-height:76px;resize:vertical}
+label{display:block;font-size:.84rem;font-weight:600;color:var(--muted);margin-bottom:4px}
+
+.weeknav{display:flex;align-items:center;gap:8px}
+.weeknav b{font-variant-numeric:tabular-nums;min-width:0;text-align:center;flex:1}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:130px 1fr 28px;gap:10px;align-items:center;font-size:.9rem}
+.bar i{display:block;height:10px;border-radius:999px;background:var(--accent);min-width:3px}
+.bar .track{background:var(--surface-2);border-radius:999px}
+.bar em{font-style:normal;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:7px 10px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:.78rem;font-weight:700;white-space:nowrap}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.scrim{position:fixed;inset:0;background:rgba(8,20,22,.5);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.scrim[hidden]{display:none}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:92%;overflow-y:auto;border-radius:18px 18px 0 0;padding:16px 16px 20px;
+  display:flex;flex-direction:column;gap:12px}
+@media (min-width:800px){.scrim{align-items:center}.sheet{border-radius:18px}}
+.sheet header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sheet h2{font-size:1.2rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sheet .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.sheet .btns .btn{flex:1 1 120px}
+.err{color:var(--bad);font-size:.88rem;font-weight:600}
+.err:empty{display:none}
+.copybox{font-size:.88rem;min-height:150px}
+
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;
+  font-weight:600;font-size:.9rem;z-index:30;max-width:calc(100% - 32px);text-align:center}
+.toast[hidden]{display:none}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand">Bitácora <span>de Inmuebles</span></div><button class="btn small" id="salir" data-act="salir" hidden style="margin-left:auto">Salir</button></header>
+
+<main><div class="wrap">
+  <div class="banner" id="banner" hidden></div>
+  <div id="view"></div>
+</div></main>
+
+<nav class="tabs" aria-label="Secciones">
+  <a href="#inicio" data-tab="inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"></path><path d="M5 10v10h14V10"></path></svg>Inicio</a>
+  <a href="#inmuebles" data-tab="inmuebles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 8h1M14 8h1M9 12h1M14 12h1M10 21v-4h4v4"></path></svg>Inmuebles</a>
+  <a href="#atenciones" data-tab="atenciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg>Atenciones</a>
+  <a href="#reporte" data-tab="reporte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"></path><path d="M14 3v5h5M9 17v-3M12 17v-5M15 17v-2"></path></svg>Reporte</a>
+</nav>
+
+<div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+"use strict";
+var TIPOS=["Apartamento","Casa","Townhouse","Local","Oficina","Terreno","Galpón","Otro"];
+var OPERACIONES=["Venta","Alquiler"];
+var ESTADOS=["Activa","Pausada","Vendida / alquilada","Eliminada"];
+var CANALES=["Messenger","WhatsApp","Llamada","Comentario","Otro"];
+var RESULTADOS=["Informado","Interesado","Visita agendada","Sin respuesta","No interesado","Cerrado"];
+var MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+var RUTAS=["inicio","inmuebles","atenciones","reporte"];
+
+var sb=null;
+var S={sesion:null,inm:[],ate:[],listo:{inm:false,ate:false},db:null,dl:null,sinDb:false,lento:false,error:null,
+  semana:0,qInm:"",fEstado:"",qAte:"",fRes:"",editando:null,guardando:false};
+
+var $=function(id){return document.getElementById(id)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function hoy(){return iso(new Date())}
+function fecha(s,conAnio){if(!s)return "";var p=String(s).split("-");if(p.length<3)return s;return Number(p[2])+" "+MESES[Number(p[1])-1]+(conAnio?" "+p[0]:"")}
+function rangoSemana(off){var d=new Date();d.setHours(12,0,0,0);var dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow+off*7);var e=new Date(d);e.setDate(d.getDate()+6);return [iso(d),iso(e)]}
+function dinero(n){return (typeof n==="number"&&isFinite(n))?"$"+n.toLocaleString("es-VE",{maximumFractionDigits:0}):""}
+function enlaceSeguro(u){return /^https?:\/\//i.test(u||"")?u:""}
+function ruta(){var h=location.hash.replace("#","");return RUTAS.indexOf(h)>=0?h:"inicio"}
+function inmPorId(id){for(var i=0;i<S.inm.length;i++)if(S.inm[i].id===id)return S.inm[i];return null}
+function enRango(x,a,b){return x.fecha>=a&&x.fecha<=b}
+function pillEstado(e){var c=e==="Activa"?"ok":e==="Pausada"?"warn":e==="Eliminada"?"bad":"acc";return '<span class="pill '+c+'">'+esc(e||"Activa")+"</span>"}
+function pillRes(r){var c=(r==="Interesado"||r==="Visita agendada"||r==="Cerrado")?"ok":r==="Sin respuesta"?"warn":r==="No interesado"?"bad":"";return '<span class="pill '+c+'">'+esc(r||"Informado")+"</span>"}
+function pendientes(){return S.ate.filter(function(a){return a.seguimiento&&!a.hecho}).sort(function(a,b){return a.seguimiento<b.seguimiento?-1:1})}
+function cargando(k){return !S.listo[k]}
+
+var toastT=null;
+function toast(m){var t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){t.hidden=true},2800)}
+
+/* ---------- Vistas ---------- */
+function montar(){
+  var r=ruta();
+  document.querySelectorAll(".tabs a").forEach(function(a){if(a.dataset.tab===r)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
+  var v=$("view");
+  document.body.classList.toggle("anon",!S.sesion);
+  $("salir").hidden=!S.sesion;
+  if(S.sinDb){v.innerHTML=vacio("Falta conectar la base de datos","Coloca la URL y la clave pública de Supabase en config.js.");return}
+  if(!S.sesion){
+    v.innerHTML='<form class="login" id="login" novalidate><h1>Iniciar sesión</h1><div><label for="l-correo">Correo</label><input id="l-correo" type="email" autocomplete="username" autocapitalize="off"></div><div><label for="l-clave">Contraseña</label><input id="l-clave" type="password" autocomplete="current-password"></div><div class="err" id="l-err"></div><button class="btn primary" type="submit" id="l-ok">Entrar</button></form>';
+    $("login").addEventListener("submit",function(e){e.preventDefault();entrar()});
+    return;
+  }
+  if(r==="inicio"){
+    v.innerHTML='<div class="wrap"><div class="head"><div><h1>Esta semana</h1><div class="sub" id="ini-rango"></div></div></div>'+
+      '<div class="tiles" id="ini-tiles"></div>'+
+      '<div class="actions"><button class="btn primary" data-act="nuevo" data-kind="inmueble">+ Inmueble</button><button class="btn primary" data-act="nuevo" data-kind="atencion">+ Atención</button></div>'+
+      '<section class="panel"><h2>Seguimientos pendientes</h2><div class="list" id="ini-pend"></div></section></div>';
+  }else if(r==="inmuebles"){
+    v.innerHTML='<div class="wrap"><div class="head"><div><h1>Inmuebles publicados</h1><div class="sub" id="inm-cuenta"></div></div><button class="btn primary" data-act="nuevo" data-kind="inmueble">+ Inmueble</button></div>'+
+      '<div class="filters"><input id="inm-q" type="search" placeholder="Buscar por título o zona" aria-label="Buscar inmuebles"><select id="inm-estado" aria-label="Filtrar por estado"><option value="">Todos los estados</option>'+ESTADOS.map(function(e){return "<option>"+esc(e)+"</option>"}).join("")+'</select></div>'+
+      '<div class="list" id="inm-lista"></div></div>';
+    $("inm-q").value=S.qInm;$("inm-estado").value=S.fEstado;
+    $("inm-q").addEventListener("input",function(e){S.qInm=e.target.value;llenar()});
+    $("inm-estado").addEventListener("change",function(e){S.fEstado=e.target.value;llenar()});
+  }else if(r==="atenciones"){
+    v.innerHTML='<div class="wrap"><div class="head"><div><h1>Atenciones a clientes</h1><div class="sub" id="ate-cuenta"></div></div><button class="btn primary" data-act="nuevo" data-kind="atencion">+ Atención</button></div>'+
+      '<div class="filters"><input id="ate-q" type="search" placeholder="Buscar por cliente o inmueble" aria-label="Buscar atenciones"><select id="ate-res" aria-label="Filtrar por resultado"><option value="">Todos los resultados</option>'+RESULTADOS.map(function(e){return "<option>"+esc(e)+"</option>"}).join("")+'</select></div>'+
+      '<div class="list" id="ate-lista"></div></div>';
+    $("ate-q").value=S.qAte;$("ate-res").value=S.fRes;
+    $("ate-q").addEventListener("input",function(e){S.qAte=e.target.value;llenar()});
+    $("ate-res").addEventListener("change",function(e){S.fRes=e.target.value;llenar()});
+  }else{
+    v.innerHTML='<div class="wrap"><div class="head"><h1>Reporte semanal</h1></div>'+
+      '<div class="weeknav"><button class="btn small" data-act="semana" data-d="-1" aria-label="Semana anterior">‹ Anterior</button><b id="rep-rango"></b><button class="btn small" data-act="semana" data-d="1" id="rep-sig" aria-label="Semana siguiente">Siguiente ›</button></div>'+
+      '<div class="tiles" id="rep-tiles"></div>'+
+      '<div class="actions"><button class="btn primary" data-act="pdf" id="rep-pdf">Enviar PDF</button><button class="btn" data-act="copiar">Copiar resumen</button></div>'+
+      '<section class="panel"><h2>Atenciones por resultado</h2><div class="bars" id="rep-res"></div></section>'+
+      '<section class="panel"><h2>Inmuebles publicados</h2><div class="tablewrap" id="rep-inm"></div></section>'+
+      '<section class="panel"><h2>Clientes atendidos</h2><div class="tablewrap" id="rep-ate"></div></section></div>';
+  }
+  llenar();
+}
+
+function vacio(titulo,texto){return '<div class="empty"><b>'+esc(titulo)+"</b>"+esc(texto)+"</div>"}
+function textoCarga(){return S.lento?vacio("Todavía no se puede leer la base de datos","Revisa la conexión. La app sigue intentando."):vacio("Cargando…","")}
+
+function tarjetaInm(i){
+  var n=S.ate.filter(function(a){return a.inmueble_id===i.id}).length;
+  var u=enlaceSeguro(i.enlace);
+  var meta=[i.tipo,i.operacion,i.zona].filter(Boolean).join(" · ");
+  return '<article class="card"><div class="row"><h3>'+esc(i.titulo)+'</h3><span class="price">'+esc(dinero(i.precio))+"</span></div>"+
+    '<div class="meta">'+esc(meta)+"</div>"+
+    '<div class="meta">Publicado el '+esc(fecha(i.fecha,true))+" · "+n+(n===1?" consulta":" consultas")+"</div>"+
+    '<div class="foot">'+pillEstado(i.estado)+(u?'<a class="btn small" href="'+esc(u)+'" target="_blank" rel="noopener">Ver publicación</a>':"")+
+    '<button class="btn small" data-act="nuevo" data-kind="atencion" data-inm="'+esc(i.id)+'">+ Atención</button>'+
+    '<button class="btn small" data-act="editar" data-kind="inmueble" data-id="'+esc(i.id)+'">Editar</button></div></article>';
+}
+function tarjetaAte(a,conHecho){
+  var i=a.inmueble_id?inmPorId(a.inmueble_id):null;
+  var vencido=a.seguimiento&&!a.hecho&&a.seguimiento<=hoy();
+  var seg=a.seguimiento?(a.hecho?"Seguimiento hecho":"Seguimiento: "+fecha(a.seguimiento)):"";
+  return '<article class="card"><div class="row"><h3>'+esc(a.cliente)+"</h3>"+pillRes(a.resultado)+"</div>"+
+    '<div class="meta">'+esc(fecha(a.fecha,true))+" · "+esc(a.canal||"")+(a.contacto?" · "+esc(a.contacto):"")+"</div>"+
+    '<div class="meta">'+esc(i?i.titulo:"Consulta general")+"</div>"+
+    (a.notas?'<div class="meta">'+esc(a.notas)+"</div>":"")+
+    '<div class="foot">'+(seg?'<span class="pill '+(vencido?"warn":"")+'">'+esc(seg)+"</span>":"")+
+    (conHecho?'<button class="btn small" data-act="hecho" data-id="'+esc(a.id)+'">Marcar hecho</button>':"")+
+    '<button class="btn small" data-act="editar" data-kind="atencion" data-id="'+esc(a.id)+'">Editar</button></div></article>';
+}
+
+function datosSemana(off){
+  var r=rangoSemana(off),a=r[0],b=r[1];
+  var inm=S.inm.filter(function(x){return enRango(x,a,b)}).sort(function(x,y){return x.fecha<y.fecha?-1:1});
+  var ate=S.ate.filter(function(x){return enRango(x,a,b)}).sort(function(x,y){return x.fecha<y.fecha?-1:1});
+  var porRes=RESULTADOS.map(function(k){return [k,ate.filter(function(x){return (x.resultado||"Informado")===k}).length]});
+  var porCanal=CANALES.map(function(k){return [k,ate.filter(function(x){return x.canal===k}).length]}).filter(function(p){return p[1]>0});
+  return {a:a,b:b,inm:inm,ate:ate,porRes:porRes,porCanal:porCanal,pend:pendientes().length};
+}
+
+function llenar(){
+  var b=$("banner");
+  if(S.error){b.hidden=false;b.textContent="No se pudieron leer los datos. Revisa la conexión y vuelve a abrir la app."}
+  else b.hidden=true;
+  if(S.sinDb||!S.sesion)return;
+
+  var r=ruta();
+  if(r==="inicio"){
+    var d=datosSemana(0);
+    $("ini-rango").textContent=fecha(d.a)+" – "+fecha(d.b,true);
+    $("ini-tiles").innerHTML='<div class="tile"><b>'+d.inm.length+'</b><span>Inmuebles publicados</span></div><div class="tile"><b>'+d.ate.length+'</b><span>Clientes atendidos</span></div><div class="tile'+(d.pend?" alert":"")+'"><b>'+d.pend+"</b><span>Seguimientos pendientes</span></div>";
+    var p=pendientes();
+    $("ini-pend").innerHTML=cargando("ate")&&!S.sinDb?textoCarga():(p.length?p.map(function(a){return tarjetaAte(a,true)}).join(""):vacio("Nada pendiente","Cuando registres una atención con fecha de seguimiento, aparecerá aquí."));
+  }else if(r==="inmuebles"){
+    var q=S.qInm.trim().toLowerCase();
+    var l=S.inm.filter(function(i){return (!S.fEstado||(i.estado||"Activa")===S.fEstado)&&(!q||((i.titulo||"")+" "+(i.zona||"")).toLowerCase().indexOf(q)>=0)})
+      .sort(function(x,y){return x.fecha===y.fecha?((String(y.creado||"")<String(x.creado||"")?-1:1)):(x.fecha<y.fecha?1:-1)});
+    $("inm-cuenta").textContent=S.inm.length+" en total · "+S.inm.filter(function(i){return (i.estado||"Activa")==="Activa"}).length+" activas";
+    $("inm-lista").innerHTML=cargando("inm")&&!S.sinDb?textoCarga():(l.length?l.map(tarjetaInm).join(""):(S.inm.length?vacio("Sin resultados","Prueba con otra búsqueda o filtro."):vacio("Aún no hay inmuebles","Toca + Inmueble cada vez que subas una publicación a Marketplace.")));
+  }else if(r==="atenciones"){
+    var q2=S.qAte.trim().toLowerCase();
+    var l2=S.ate.filter(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return (!S.fRes||(a.resultado||"Informado")===S.fRes)&&(!q2||((a.cliente||"")+" "+(i?i.titulo:"")+" "+(a.contacto||"")).toLowerCase().indexOf(q2)>=0)})
+      .sort(function(x,y){return x.fecha===y.fecha?((String(y.creado||"")<String(x.creado||"")?-1:1)):(x.fecha<y.fecha?1:-1)});
+    $("ate-cuenta").textContent=S.ate.length+" en total";
+    $("ate-lista").innerHTML=cargando("ate")&&!S.sinDb?textoCarga():(l2.length?l2.map(function(a){return tarjetaAte(a,false)}).join(""):(S.ate.length?vacio("Sin resultados","Prueba con otra búsqueda o filtro."):vacio("Aún no hay atenciones","Toca + Atención cada vez que atiendas a un cliente.")));
+  }else{
+    var w=datosSemana(S.semana);
+    $("rep-rango").textContent=fecha(w.a)+" – "+fecha(w.b,true);
+    $("rep-sig").disabled=S.semana>=0;
+    $("rep-pdf").hidden=!window.jspdf;
+    $("rep-tiles").innerHTML='<div class="tile"><b>'+w.inm.length+'</b><span>Inmuebles publicados</span></div><div class="tile"><b>'+w.ate.length+'</b><span>Clientes atendidos</span></div><div class="tile"><b>'+w.ate.filter(function(a){return a.resultado==="Visita agendada"||a.resultado==="Cerrado"}).length+"</b><span>Visitas y cierres</span></div>";
+    var max=Math.max.apply(null,w.porRes.map(function(p){return p[1]}).concat([1]));
+    $("rep-res").innerHTML=w.ate.length?w.porRes.map(function(p){return '<div class="bar"><span>'+esc(p[0])+'</span><div class="track"><i style="width:'+Math.round(p[1]/max*100)+'%"></i></div><em>'+p[1]+"</em></div>"}).join(""):'<div class="sub">Sin atenciones registradas esta semana.</div>';
+    $("rep-inm").innerHTML=w.inm.length?"<table><thead><tr><th>Fecha</th><th>Inmueble</th><th>Zona</th><th>Precio</th><th>Estado</th></tr></thead><tbody>"+w.inm.map(function(i){return '<tr><td class="num">'+esc(fecha(i.fecha))+"</td><td>"+esc(i.titulo)+"</td><td>"+esc(i.zona||"")+'</td><td class="num">'+esc(dinero(i.precio))+"</td><td>"+esc(i.estado||"Activa")+"</td></tr>"}).join("")+"</tbody></table>":'<div class="sub">Sin inmuebles publicados esta semana.</div>';
+    $("rep-ate").innerHTML=w.ate.length?"<table><thead><tr><th>Fecha</th><th>Cliente</th><th>Inmueble</th><th>Canal</th><th>Resultado</th></tr></thead><tbody>"+w.ate.map(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return '<tr><td class="num">'+esc(fecha(a.fecha))+"</td><td>"+esc(a.cliente)+"</td><td>"+esc(i?i.titulo:"Consulta general")+"</td><td>"+esc(a.canal||"")+"</td><td>"+esc(a.resultado||"Informado")+"</td></tr>"}).join("")+"</tbody></table>":'<div class="sub">Sin atenciones registradas esta semana.</div>';
+  }
+}
+
+/* ---------- Formularios ---------- */
+function campos(kind){
+  if(kind==="inmueble")return [
+    {n:"titulo",l:"Título de la publicación",req:true,ph:"Apartamento 3 hab. en Los Olivos"},
+    {n:"fecha",l:"Fecha de publicación",t:"date",req:true,half:true},
+    {n:"estado",l:"Estado",t:"select",o:ESTADOS,half:true},
+    {n:"tipo",l:"Tipo",t:"select",o:TIPOS,half:true},
+    {n:"operacion",l:"Operación",t:"select",o:OPERACIONES,half:true},
+    {n:"zona",l:"Zona",ph:"Urbanización o sector",half:true},
+    {n:"precio",l:"Precio (USD)",t:"number",half:true},
+    {n:"enlace",l:"Enlace de la publicación",t:"url",ph:"Pega aquí el enlace de Marketplace"},
+    {n:"notas",l:"Notas",t:"textarea"}];
+  var ops=[["","Consulta general (sin inmueble)"]].concat(S.inm.slice().sort(function(x,y){return x.fecha<y.fecha?1:-1}).map(function(i){return [i.id,i.titulo+(i.zona?" · "+i.zona:"")]}));
+  return [
+    {n:"cliente",l:"Cliente",req:true,ph:"Nombre o usuario de Facebook"},
+    {n:"contacto",l:"Contacto",ph:"Teléfono (opcional)",half:true},
+    {n:"fecha",l:"Fecha",t:"date",req:true,half:true},
+    {n:"inmueble_id",l:"Inmueble por el que preguntó",t:"select",o:ops},
+    {n:"canal",l:"Canal",t:"select",o:CANALES,half:true},
+    {n:"resultado",l:"Resultado",t:"select",o:RESULTADOS,half:true},
+    {n:"seguimiento",l:"Fecha de seguimiento (opcional)",t:"date"},
+    {n:"notas",l:"Notas",t:"textarea"}];
+}
+function abrir(kind,id,preset){
+  var col=kind==="inmueble"?S.inm:S.ate, doc=null;
+  if(id){for(var k=0;k<col.length;k++)if(col[k].id===id)doc=col[k]}
+  var base=kind==="inmueble"?{fecha:hoy(),estado:"Activa",tipo:"Apartamento",operacion:"Venta"}:{fecha:hoy(),canal:"Messenger",resultado:"Informado",inmueble_id:""};
+  var v=Object.assign({},base,preset||{},doc||{});
+  S.editando={kind:kind,id:doc?doc.id:null,doc:doc};
+  var cs=campos(kind),h="",i=0;
+  function ctl(c){
+    var val=v[c.n]==null?"":v[c.n],id2="f-"+c.n,x;
+    if(c.t==="select")x='<select id="'+id2+'">'+c.o.map(function(o){var ov=Array.isArray(o)?o[0]:o,ol=Array.isArray(o)?o[1]:o;return '<option value="'+esc(ov)+'"'+(String(ov)===String(val)?" selected":"")+">"+esc(ol)+"</option>"}).join("")+"</select>";
+    else if(c.t==="textarea")x='<textarea id="'+id2+'">'+esc(val)+"</textarea>";
+    else x='<input id="'+id2+'" type="'+(c.t==="number"?"number":c.t==="date"?"date":"text")+'"'+(c.t==="number"?' inputmode="numeric" min="0" step="any"':"")+(c.t==="url"?' inputmode="url" autocapitalize="off"':"")+' value="'+esc(val)+'" placeholder="'+esc(c.ph||"")+'">';
+    return '<div><label for="'+id2+'">'+esc(c.l)+"</label>"+x+"</div>";
+  }
+  while(i<cs.length){
+    if(cs[i].half&&cs[i+1]&&cs[i+1].half){h+='<div class="grid2">'+ctl(cs[i])+ctl(cs[i+1])+"</div>";i+=2}
+    else{h+=ctl(cs[i]);i++}
+  }
+  var nombre=kind==="inmueble"?"inmueble":"atención";
+  $("sheet").innerHTML='<header><h2>'+(doc?"Editar ":(kind==="inmueble"?"Nuevo ":"Nueva "))+nombre+'</h2><button class="btn small" data-act="cerrar" aria-label="Cerrar">Cerrar</button></header>'+
+    '<form id="form" novalidate style="display:flex;flex-direction:column;gap:12px">'+h+'<div class="err" id="form-err"></div>'+
+    '<div class="btns"><button class="btn primary" type="submit" id="form-ok">Guardar</button>'+(doc?'<button class="btn danger" type="button" data-act="borrar" id="form-del">Eliminar</button>':"")+"</div></form>";
+  $("sheet").setAttribute("aria-label",nombre);
+  $("scrim").hidden=false;
+  $("form").addEventListener("submit",function(e){e.preventDefault();guardar()});
+  var first=$("f-"+cs[0].n);if(first&&!doc)first.focus();
+}
+function cerrar(){$("scrim").hidden=true;$("sheet").innerHTML="";S.editando=null;S.guardando=false}
+function mensajeError(e){
+  return "No se pudo guardar. Revisa la conexión e inténtalo de nuevo."+(e&&e.message?" ("+e.message+")":"");
+}
+function tabla(kind){return kind==="inmueble"?"inmuebles":"atenciones"}
+async function guardar(){
+  var ed=S.editando;if(!ed||S.guardando||!sb)return;
+  var cs=campos(ed.kind),data={},falta=null;
+  cs.forEach(function(c){var el=$("f-"+c.n),val=el?String(el.value).trim():"";
+    if(c.req&&!val&&!falta)falta=c.l;
+    if(c.t==="number"){var n=parseFloat(val.replace(",","."));data[c.n]=isFinite(n)?n:null}
+    else data[c.n]=val});
+  if(falta){$("form-err").textContent="Falta completar: "+falta+".";return}
+  if(data.enlace&&!/^https?:\/\//i.test(data.enlace))data.enlace="https://"+data.enlace;
+  if(ed.kind==="atencion"){
+    data.inmueble_id=data.inmueble_id||null;
+    data.seguimiento=data.seguimiento||null;
+    data.hecho=!!(data.seguimiento&&ed.doc&&ed.doc.seguimiento===data.seguimiento&&ed.doc.hecho);
+  }
+  S.guardando=true;$("form-ok").disabled=true;$("form-ok").textContent="Guardando…";
+  try{
+    var res=ed.id?await sb.from(tabla(ed.kind)).update(data).eq("id",ed.id):await sb.from(tabla(ed.kind)).insert(data);
+    if(res.error)throw res.error;
+    cerrar();toast("Guardado");await cargar();
+  }catch(e){S.guardando=false;var ok=$("form-ok");if(ok){ok.disabled=false;ok.textContent="Guardar"}var er=$("form-err");if(er)er.textContent=mensajeError(e)}
+}
+async function borrar(btn){
+  var ed=S.editando;if(!ed||!ed.id||!sb)return;
+  if(btn.dataset.conf!=="1"){btn.dataset.conf="1";btn.textContent="Confirmar eliminación";return}
+  btn.disabled=true;
+  try{var res=await sb.from(tabla(ed.kind)).delete().eq("id",ed.id);if(res.error)throw res.error;cerrar();toast("Eliminado");await cargar()}
+  catch(e){btn.disabled=false;$("form-err").textContent=mensajeError(e)}
+}
+async function marcarHecho(id){
+  if(!sb)return;
+  try{var res=await sb.from("atenciones").update({hecho:true}).eq("id",id);if(res.error)throw res.error;toast("Seguimiento hecho");await cargar()}catch(e){toast(mensajeError(e))}
+}
+async function entrar(){
+  var ok=$("l-ok");ok.disabled=true;$("l-err").textContent="";
+  var res=await sb.auth.signInWithPassword({email:$("l-correo").value.trim(),password:$("l-clave").value});
+  if(res.error){ok.disabled=false;$("l-err").textContent="Correo o contraseña incorrectos."}
+}
+
+/* ---------- Reporte ---------- */
+function resumenTexto(){
+  var w=datosSemana(S.semana),L=[];
+  L.push("REPORTE SEMANAL");
+  L.push(fecha(w.a)+" – "+fecha(w.b,true));
+  L.push("");
+  L.push("Inmuebles publicados: "+w.inm.length);
+  L.push("Clientes atendidos: "+w.ate.length);
+  w.porRes.forEach(function(p){if(p[1])L.push("  • "+p[0]+": "+p[1])});
+  if(w.porCanal.length)L.push("Por canal: "+w.porCanal.map(function(p){return p[0]+" "+p[1]}).join(", "));
+  if(w.inm.length){L.push("");L.push("Publicaciones de la semana:");w.inm.forEach(function(i){L.push("  • "+i.titulo+(i.zona?" ("+i.zona+")":"")+(dinero(i.precio)?" – "+dinero(i.precio):""))})}
+  return L.join("\n");
+}
+function crearPdf(){
+  var w=datosSemana(S.semana),doc=new window.jspdf.jsPDF({unit:"pt",format:"a4"}),y=56,M=40,verde=[13,117,102];
+  doc.setFont("helvetica","bold");doc.setFontSize(20);doc.text("Reporte semanal",M,y);
+  doc.setFont("helvetica","normal");doc.setFontSize(11);doc.setTextColor(90);y+=18;
+  doc.text("Semana del "+fecha(w.a)+" al "+fecha(w.b,true)+"  ·  Generado el "+fecha(hoy(),true),M,y);
+  doc.setTextColor(20);y+=30;
+  var cifras=[[String(w.inm.length),"Inmuebles publicados"],[String(w.ate.length),"Clientes atendidos"],[String(w.ate.filter(function(a){return a.resultado==="Visita agendada"||a.resultado==="Cerrado"}).length),"Visitas y cierres"]];
+  cifras.forEach(function(c,i){var x=M+i*172;doc.setDrawColor(210);doc.roundedRect(x,y,160,58,6,6);doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text(c[0],x+12,y+28);doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.setTextColor(90);doc.text(c[1],x+12,y+46);doc.setTextColor(20)});
+  y+=84;
+  function titulo(t){doc.setFont("helvetica","bold");doc.setFontSize(12.5);doc.text(t,M,y);y+=8}
+  function tabla(head,body){doc.autoTable({startY:y,head:[head],body:body,margin:{left:M,right:M},styles:{font:"helvetica",fontSize:9,cellPadding:5,overflow:"linebreak"},headStyles:{fillColor:verde,textColor:255},alternateRowStyles:{fillColor:[241,245,244]}});y=doc.lastAutoTable.finalY+26}
+  titulo("Atenciones por resultado");
+  tabla(["Resultado","Cantidad"],w.porRes.map(function(p){return [p[0],String(p[1])]}));
+  titulo("Inmuebles publicados ("+w.inm.length+")");
+  if(w.inm.length)tabla(["Fecha","Inmueble","Tipo","Zona","Precio","Estado"],w.inm.map(function(i){return [fecha(i.fecha),i.titulo||"",[i.tipo,i.operacion].filter(Boolean).join(" / "),i.zona||"",dinero(i.precio),i.estado||"Activa"]}));
+  else{doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Sin inmuebles publicados esta semana.",M,y+12);y+=40}
+  titulo("Clientes atendidos ("+w.ate.length+")");
+  if(w.ate.length)tabla(["Fecha","Cliente","Inmueble","Canal","Resultado","Notas"],w.ate.map(function(a){var i=a.inmueble_id?inmPorId(a.inmueble_id):null;return [fecha(a.fecha),a.cliente||"",i?i.titulo:"Consulta general",a.canal||"",a.resultado||"Informado",a.notas||""]}));
+  else{doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Sin atenciones registradas esta semana.",M,y+12)}
+  return {blob:doc.output("blob"),nombre:"Reporte-semanal-"+w.a+".pdf"};
+}
+function descargar(p){
+  var u=URL.createObjectURL(p.blob),a=document.createElement("a");
+  a.href=u;a.download=p.nombre;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(u)},4000);toast("PDF descargado");
+}
+async function enviarPdf(btn){
+  if(!window.jspdf)return;
+  btn.disabled=true;
+  try{
+    var p=crearPdf(),f=null;
+    try{f=new File([p.blob],p.nombre,{type:"application/pdf"})}catch(e){f=null}
+    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){
+      try{await navigator.share({files:[f],title:"Reporte semanal"})}
+      catch(e){if(!e||e.name!=="AbortError")descargar(p)}
+    }else descargar(p);
+  }catch(e){toast("No se pudo generar el PDF. Usa Copiar resumen.")}
+  btn.disabled=false;
+}
+async function copiar(){
+  var t=resumenTexto();
+  try{await navigator.clipboard.writeText(t);toast("Resumen copiado")}
+  catch(e){
+    $("sheet").innerHTML='<header><h2>Resumen de la semana</h2><button class="btn small" data-act="cerrar">Cerrar</button></header><label for="copy-box">Mantén presionado el texto para copiarlo</label><textarea class="copybox" id="copy-box" readonly></textarea>';
+    $("copy-box").value=t;$("scrim").hidden=false;$("copy-box").select();
+  }
+}
+
+/* ---------- Eventos ---------- */
+document.addEventListener("click",function(e){
+  if(e.target===$("scrim")){cerrar();return}
+  var b=e.target.closest("[data-act]");if(!b)return;
+  var a=b.dataset.act;
+  if(a==="nuevo")abrir(b.dataset.kind,null,b.dataset.inm?{inmueble_id:b.dataset.inm}:null);
+  else if(a==="editar")abrir(b.dataset.kind,b.dataset.id);
+  else if(a==="cerrar")cerrar();
+  else if(a==="borrar")borrar(b);
+  else if(a==="hecho")marcarHecho(b.dataset.id);
+  else if(a==="semana"){S.semana=Math.min(0,S.semana+Number(b.dataset.d));llenar()}
+  else if(a==="pdf")enviarPdf(b);
+  else if(a==="copiar")copiar();
+  else if(a==="salir"){if(sb)sb.auth.signOut()}
+});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("scrim").hidden)cerrar()});
+window.addEventListener("hashchange",montar);
+
+/* ---------- Datos ---------- */
+async function cargar(){
+  if(!sb||!S.sesion)return;
+  var a=await sb.from("inmuebles").select("*").order("fecha",{ascending:false});
+  var b=await sb.from("atenciones").select("*").order("fecha",{ascending:false});
+  if(a.error||b.error)S.error=a.error||b.error;
+  else{S.error=null;S.inm=a.data||[];S.ate=b.data||[]}
+  S.listo.inm=S.listo.ate=true;
+  llenar();
+}
+async function iniciar(){
+  var c=window.BITACORA_CONFIG||{};
+  if(!window.supabase||!c.SUPABASE_URL||!c.SUPABASE_ANON_KEY||/TU-PROYECTO/.test(c.SUPABASE_URL)){S.sinDb=true;montar();return}
+  sb=window.supabase.createClient(c.SUPABASE_URL,c.SUPABASE_ANON_KEY);
+  try{var r=await sb.auth.getSession();S.sesion=r.data.session}catch(e){S.sesion=null}
+  sb.auth.onAuthStateChange(function(ev,ses){
+    var antes=!!S.sesion;S.sesion=ses;
+    if(!!ses!==antes){if(!ses){S.inm=[];S.ate=[];S.listo.inm=S.listo.ate=false}montar();if(ses)cargar()}
+  });
+  montar();
+  if(S.sesion)cargar();
+}
+iniciar();
+</script>
+</body>
+</html>
